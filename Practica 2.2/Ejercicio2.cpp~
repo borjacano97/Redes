@@ -5,12 +5,10 @@
 #include <iostream>
 
 //int socket(int domain, int type, int protocol);
+
 int main (int argc, char** argv)
 {
-	char * hostName;
-	if (argc > 1)
-		hostName = argv[1];
-	else return -1;
+	if (argc <= 1) return -1;
 	/*
 	hostent* node = gethostbyname(hostName);
 	servent* service = getservbyname(hostName, NULL);
@@ -20,12 +18,8 @@ int main (int argc, char** argv)
 	memset(&hints, 0, sizeof(hints));
 	hints.ai_family = AF_UNSPEC;
 	
-	int success = getaddrinfo(argv[1], 0, &hints, &res);
-	if (success != 0)
-	{
-		std::cout<< "Error: Name or service not known" << std::endl;
-		return success;
-	} 
+	int success = getaddrinfo(argv[1], argv[2], &hints, &res);
+	if (success != 0) return success;
 	
 	for (struct addrinfo* p = res; p != NULL; p = p->ai_next)
 	{
