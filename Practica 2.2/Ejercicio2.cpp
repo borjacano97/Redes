@@ -3,6 +3,7 @@
 #include <sys/socket.h>
 #include <netdb.h>
 #include <string.h>
+#include <sstream>
 #include <iostream>
 
 #include <ctime>
@@ -13,8 +14,12 @@ void getHour(char* target)
 
 	time (&rawtime);
 	timeinfo = localtime (&rawtime);
-	const char * result = (std::to_string(timeinfo->tm_hour) +  " : " + std::to_string(timeinfo->tm_min) +  " : " + std::to_string(timeinfo->tm_sec) + "\n").c_str();
-	strcpy(target, result);
+
+	std::ostringstream oss;
+
+	oss << timeinfo->tm_hour << " : " << timeinfo->tm_min << " : " << timeinfo->tm_sec << "\n";
+
+	strcpy(target, oss.str().c_str());
 }
 void getDate(char* target)
 {
@@ -23,8 +28,10 @@ void getDate(char* target)
 
 	time (&rawtime);
 	timeinfo = localtime (&rawtime);
-	const char* result =  (std::to_string(timeinfo->tm_year + 1900) + " - "+ std::to_string(timeinfo->tm_mon +1 ) +  " - " +  std::to_string(timeinfo->tm_mday) + "\n").c_str();
-	strcpy(target, result);
+	std::ostringstream oss;
+	oss << timeinfo->tm_year + 1900 << " - "<<timeinfo->tm_mon +1 << " - " << timeinfo->tm_mday << "\n";
+	//const char* result =  (std::to_string(timeinfo->tm_year + 1900) + " - "+ std::to_string(timeinfo->tm_mon +1 ) +  " - " +  std::to_string(timeinfo->tm_mday) + "\n").c_str();
+	strcpy(target, oss.str().c_str());
 }
 
 int main (int argc, char** argv)
@@ -37,7 +44,8 @@ int main (int argc, char** argv)
 	struct addrinfo* res;
 	struct addrinfo hints;
 	memset(&hints, 0, sizeof(hints));
-	hints.ai_family = AF_UNSPEC;
+	hints.ai_family   = AF_INET;
+	hints.ai_socktype = SOCK_DGRAM;
 
 	int success = getaddrinfo(argv[1], argv[2], &hints, &res);
 	if (success != 0)
@@ -64,17 +72,18 @@ int main (int argc, char** argv)
 	socklen_t addrlen = sizeof(src_addr);
 
 	while (1){
+		memset(buff, '\0', 80);
 		int bytesRecived = recvfrom(sd, buff, 80, 0, &src_addr, &addrlen);
 		if (bytesRecived > 0)
 		{
 			std::cout<< bytesRecived <<" bytes de " << src_addr.sa_family<< std::endl;
 			if (buff[0] == 'q') break;
-			if (buff[0] == 'd') getHour(&(buff[0]));
-			else if (buff[0] == 't')getDate(&(buff[0]));
+			if (buff[0] == 't') getHour(buff);
+			else if (buff[0] == 'd')getDate(&(buff[0]));
 			else std::cout<<"Comando no soportado: "<< buff[0]<< "\n";
 
-			buff[bytesRecived] = '\0';
-			sendto(sd, buff, 80, 0, (sockaddr*) &src_addr, addrlen);
+			//buff[bytesRecived] = '\0';
+			sendto(sd, buff, strlen(buff), 0, (sockaddr*) &src_addr, addrlen);
 		}
 	}
 	std::cout<<"Saliendo...\n";
