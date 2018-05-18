@@ -1,10 +1,10 @@
-
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
 #include <string.h>
 #include <sstream>
 #include <iostream>
+#include <unistd.h>
 #include <ctime>
 
 #define BUFFER_SIZE 256
@@ -42,6 +42,11 @@ int main (int argc, char** argv)
 	while (1){
 		memset(buffer, '\0', BUFFER_SIZE);//Reset buffer
 		std::cin >> input;
+		/*if ((input[0] == 'q' || input[0] == 'Q') && input.length() < 2)
+		{//Close conection
+			close(sd);
+			break;
+		}*/
 		input += '\n';
 		send (sd, input.c_str(), input.length(), 0);
 		recv(sd, buffer, BUFFER_SIZE, 0);
