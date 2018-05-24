@@ -5,9 +5,12 @@
 #include <string.h>
 #include <sstream>
 #include <iostream>
+#include <unistd.h>
+#include <pthread.h>
 
 #include <ctime>
-void getHour(char* target)
+unsigned int NUM_THREADS = 4	;
+static void getHour(char* target)
 {
 	time_t rawtime;
 	tm * timeinfo;
@@ -21,7 +24,7 @@ void getHour(char* target)
 
 	strcpy(target, oss.str().c_str());
 }
-void getDate(char* target)
+static void getDate(char* target)
 {
 	time_t rawtime;
 	tm * timeinfo;
@@ -34,61 +37,107 @@ void getDate(char* target)
 	strcpy(target, oss.str().c_str());
 }
 
+class ServerThread {
+private:
+	int sd;
+
+	void parseAndTreat(char option, char* buffer_out, bool &exit)
+	{
+		switch (option) {
+			case 't'://get Time
+				getHour(buffer_out);
+			break;
+			case 'd'://gat Date
+			getDate(buffer_out);
+			break;
+			case 'q'://Quit
+			exit = true;
+			break;
+			default:
+				std::cout << "Comando \"" << option << "\" no soportado!" << '\n';
+			break;
+		}
+	}
+
+public:
+	ServerThread(int s): sd(s){};
+	virtual ~ServerThread(){};
+
+	void do_message()
+	{
+		bool exit = false;
+		char buf[255];
+		struct sockaddr src_addr;
+		socklen_t addrlen = sizeof(src_addr);
+
+		size_t s;
+		while (!exit){
+			memset(buf,'\0', 255);
+			s = recvfrom(sd, buf, 255, 0, &src_addr, &addrlen);
+			std::cout << "s:"<< s << '\n';
+			std::cout << "Msg recived!" << '\n';
+			std::cout << "Thread: " << pthread_self() << "\n";
+			parseAndTreat(buf[0], buf, exit);
+			sendto(sd, buf, 255, 0, &src_addr, addrlen);
+			sleep(60);
+			}
+		}
+};
+
+extern "C" void* start_routine(void* _st)
+{
+	ServerThread* st = static_cast<ServerThread*> (_st);
+	st->do_message();
+	return 0;
+}
+
 int main (int argc, char** argv)
 {
 	if (argc <= 1) {
-		std::cout << "Usange: ./time_server \"direction\" \"port\"\nExample: ./time_server 0.0.0.0 3000" << '\n';
+		std::cout << "Usange: ./time_server_threaded \"direction\" \"port\"\nExample: ./time_server_threaded 0.0.0.0 3000" << '\n';
 		return -1;
 	};
 
 	struct addrinfo* res;
 	struct addrinfo hints;
 	memset(&hints, 0, sizeof(hints));
-	hints.ai_family   = AF_INET;
-	hints.ai_socktype = SOCK_DGRAM;
-
+	hints.ai_family   = AF_INET;//IPv4
+	hints.ai_socktype = SOCK_DGRAM;//UDP
+	std::cout << "Starting server..." << '\n';
+	//Get ip and port information
 	int success = getaddrinfo(argv[1], argv[2], &hints, &res);
 	if (success != 0)
 	{
 		std::cout << "ERROR: "<< gai_strerror(success)<<std::endl;
 		return success;
 	}
-/*
-	for (struct addrinfo* p = res; p != NULL; p = p->ai_next)
-	{
-		char host[NI_MAXHOST];
-		char serv[NI_MAXSERV];
-
-		getnameinfo(p->ai_addr, p->ai_addrlen, host, NI_MAXHOST, serv, NI_MAXSERV, NI_NUMERICHOST | NI_NUMERICSERV);
-
-		std::cout<< "Host: " << host << "\nServ: " << serv << std::endl;
-	}
-*/
+	//Init and bind socket
 	int sd = socket(res->ai_family, res->ai_socktype, 0);
 	bind(sd, (struct sockaddr *)res->ai_addr, res->ai_addrlen);
 
-	char buff[80];
-	struct sockaddr src_addr;
-	socklen_t addrlen = sizeof(src_addr);
 
-	while (1){
-		memset(buff, '\0', 80);
-		int bytesRecived = recvfrom(sd, buff, 80, 0, &src_addr, &addrlen);
-		if (bytesRecived > 0)
-		{
-			std::cout<< bytesRecived <<" bytes de " << src_addr.sa_family<< std::endl;
-			if (buff[0] == 'q') break;
-			if (buff[0] == 't') getHour(buff);
-			else if (buff[0] == 'd')getDate(&(buff[0]));
-			else std::cout<<"Comando no soportado: "<< buff[0]<< "\n";
+	//Create a Thread pool
+	float porcentaje;
+	for (int i = 0; i <= NUM_THREADS; i++)
+	{
+		porcentaje = 100.0f * ((float)i/(float)NUM_THREADS);
+		std::cout << "\rInitializing Threads: " <<porcentaje<<(char)37/*"%""*/;
+		pthread_t tid;
+		pthread_attr_t attr;
+		ServerThread* st = new ServerThread(sd);
 
-			//buff[bytesRecived] = '\0';
-			sendto(sd, buff, strlen(buff), 0, (sockaddr*) &src_addr, addrlen);
-		}
+		pthread_attr_init(&attr);
+		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+		pthread_create(&tid, &attr, start_routine, static_cast<void*>(st));
 	}
+	std::cout << " Done!" << '\n';
+	//Main Thread
+	while (1) {
+		sleep(60);
+	}
+
 	std::cout<<"Saliendo...\n";
 	freeaddrinfo(res);
 
 	return 0;
 };
-
