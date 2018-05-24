@@ -31,6 +31,7 @@ public:
 
     int from_bin(char * data)
     {
+      data+= sizeof(int32_t);
       memcpy(name, data, MAX_NAME_SIZE);
       data += MAX_NAME_SIZE;
       memcpy(&x, data, sizeof(x));

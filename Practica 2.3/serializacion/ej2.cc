@@ -9,26 +9,39 @@
 #include <string.h>
 #include <unistd.h>
 
+#define MAX_NAME_SIZE 80
+
 class Jugador: public Serializable
 {
 public:
     Jugador(const char * _n, int16_t _x, int16_t _y):x(_x),y(_y)
     {
-        strncpy(name, _n, 80);
+        strncpy(name, _n, MAX_NAME_SIZE);
     };
 
     virtual ~Jugador(){};
 
     void to_bin()
     {
+      alloc_data(sizeof(x) + sizeof(y) + MAX_NAME_SIZE);
+      memcpy(_data, name, MAX_NAME_SIZE);
+      memcpy(_data, &x, sizeof(x));
+      memcpy(_data, &y, sizeof(x));
     }
 
     int from_bin(char * data)
     {
+      data+= sizeof(int32_t);
+      memcpy(name, data, MAX_NAME_SIZE);
+      data += MAX_NAME_SIZE;
+      memcpy(&x, data, sizeof(x));
+      data += sizeof(x);
+      memcpy(&y, data, sizeof(x));
+      return 0;
     }
 
 public:
-    char name[80];
+    char name[MAX_NAME_SIZE];
 
     int16_t x;
     int16_t y;
@@ -36,4 +49,12 @@ public:
 
 int main(int argc, char **argv)
 {
+  Jugador one = Jugador("", 3, 3);
+  int fd = open("Player1.data", O_RDONLY);
+  char *buf;
+  read(fd, buf, 3000);
+  one.from_bin(buf);
+  close(fd);
+  std::cout << "Player:"<< one.name<< " is on: "<<one.x <<", "<< one.y << '\n';
+  return 0;
 }
