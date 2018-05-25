@@ -24,20 +24,27 @@ public:
     void to_bin()
     {
       alloc_data(sizeof(x) + sizeof(y) + MAX_NAME_SIZE);
-      memcpy(_data, name, MAX_NAME_SIZE);
-      memcpy(_data, &x, sizeof(x));
-      memcpy(_data, &y, sizeof(x));
+      char* p = _data;
+      p += sizeof(_size);
+      memcpy(p, name, MAX_NAME_SIZE);
+      p += MAX_NAME_SIZE;
+      memcpy(p, &x, sizeof(x));
+      p += sizeof(x);
+      memcpy(p, &y, sizeof(x));
     }
 
     int from_bin(char * data)
     {
-      data+= sizeof(int32_t);
+      memcpy(&_size, data, sizeof(int32_t));
+      alloc_data(_size);
+      data += sizeof(_size);
       memcpy(name, data, MAX_NAME_SIZE);
       data += MAX_NAME_SIZE;
       memcpy(&x, data, sizeof(x));
       data += sizeof(x);
-      memcpy(&y, data, sizeof(x));
+      memcpy(&y, data, sizeof(y));
       return 0;
+
     }
 
 public:
@@ -51,10 +58,10 @@ int main(int argc, char **argv)
 {
   Jugador one = Jugador("", 3, 3);
   int fd = open("Player1.data", O_RDONLY);
-  char *buf;
-  read(fd, buf, 3000);
+  char buf[3000];
+  read(fd, &buf, 3000);
   one.from_bin(buf);
   close(fd);
-  std::cout << "Player:"<< one.name<< " is on: "<<one.x <<", "<< one.y << '\n';
+  std::cout << "Player: "<< one.name<< " is on: "<<one.x <<", "<< one.y << '\n';
   return 0;
 }

@@ -24,19 +24,23 @@ public:
     void to_bin()
     {
       alloc_data(sizeof(x) + sizeof(y) + MAX_NAME_SIZE);
-      memcpy(_data, name, MAX_NAME_SIZE);
-      memcpy(_data, &x, sizeof(x));
-      memcpy(_data, &y, sizeof(x));
+      char* p = _data;
+      p += sizeof(int32_t);
+      memcpy(p, name, MAX_NAME_SIZE);
+      p += MAX_NAME_SIZE;
+      memcpy(p, &x, sizeof(x));
+      p += sizeof(x);
+      memcpy(p, &y, sizeof(x));
     }
 
     int from_bin(char * data)
     {
-      data+= sizeof(int32_t);
-      memcpy(name, data, MAX_NAME_SIZE);
-      data += MAX_NAME_SIZE;
-      memcpy(&x, data, sizeof(x));
-      data += sizeof(x);
-      memcpy(&y, data, sizeof(x));
+      data+= sizeof(int32_t);//Skip the size header
+      memcpy(name, data, MAX_NAME_SIZE);//Copy the name
+      data += MAX_NAME_SIZE;///Avance the pointer
+      memcpy(&x, data, sizeof(x));//Copy x
+      data += sizeof(x);//Advance the pinter
+      memcpy(&y, data, sizeof(y));//Copy y
       return 0;
     }
 
